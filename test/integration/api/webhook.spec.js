@@ -56,12 +56,34 @@ test.after(async (t) => {
 test('list webhooks', async (t) => {
   const authorizationHeaders = await getAccessTokenHeaders({ t, permissions: ['webhook:list:all'] })
 
-  const { body: webhooks } = await request(t.context.serverUrl)
-    .get('/webhooks')
+  const { body: obj } = await request(t.context.serverUrl)
+    .get('/webhooks?page=2')
     .set(authorizationHeaders)
     .expect(200)
 
-  t.true(Array.isArray(webhooks))
+  t.true(typeof obj === 'object')
+  t.true(typeof obj.nbResults === 'number')
+  t.true(typeof obj.nbPages === 'number')
+  t.true(typeof obj.page === 'number')
+  t.true(typeof obj.nbResultsPerPage === 'number')
+  t.true(Array.isArray(obj.results))
+})
+
+test('list webhooks with advanced filters', async (t) => {
+  const authorizationHeaders = await getAccessTokenHeaders({ t, permissions: ['webhook:list:all'] })
+
+  const minDate = '2019-01-01T00:00:00.000Z'
+
+  const { body: obj } = await request(t.context.serverUrl)
+    .get(`/webhooks?createdDate[gte]=${encodeURIComponent(minDate)}&active=true`)
+    .set(authorizationHeaders)
+    .expect(200)
+
+  t.is(obj.results.length, obj.nbResults)
+  obj.results.forEach(webhook => {
+    t.true(webhook.active)
+    t.true(webhook.createdDate >= minDate)
+  })
 })
 
 test('list webhooks with custom namespace', async (t) => {
@@ -71,12 +93,19 @@ test('list webhooks with custom namespace', async (t) => {
     readNamespaces: ['custom']
   })
 
-  const { body: webhooks } = await request(t.context.serverUrl)
+  const { body: obj } = await request(t.context.serverUrl)
     .get('/webhooks')
     .set(authorizationHeaders)
     .expect(200)
 
-  t.true(Array.isArray(webhooks))
+  t.true(typeof obj === 'object')
+  t.true(typeof obj.nbResults === 'number')
+  t.true(typeof obj.nbPages === 'number')
+  t.true(typeof obj.page === 'number')
+  t.true(typeof obj.nbResultsPerPage === 'number')
+  t.true(Array.isArray(obj.results))
+
+  const webhooks = obj.results
 
   let hasAtLeastOneCustomNamespace = false
   webhooks.forEach(webhook => {
@@ -489,4 +518,46 @@ test('fails to update a webhook with an invalid API version', async (t) => {
     .expect(400)
 
   t.pass()
+})
+
+// //////// //
+// VERSIONS //
+// //////// //
+
+test('2019-05-20: list webhooks', async (t) => {
+  const authorizationHeaders = await getAccessTokenHeaders({
+    apiVersion: '2019-05-20',
+    t,
+    permissions: ['webhook:list:all']
+  })
+
+  const { body: webhooks } = await request(t.context.serverUrl)
+    .get('/webhooks')
+    .set(authorizationHeaders)
+    .expect(200)
+
+  t.true(Array.isArray(webhooks))
+})
+
+test('2019-05-20: list webhooks with custom namespace', async (t) => {
+  const authorizationHeaders = await getAccessTokenHeaders({
+    apiVersion: '2019-05-20',
+    t,
+    permissions: ['webhook:list:all'],
+    readNamespaces: ['custom']
+  })
+
+  const { body: webhooks } = await request(t.context.serverUrl)
+    .get('/webhooks')
+    .set(authorizationHeaders)
+    .expect(200)
+
+  t.true(Array.isArray(webhooks))
+
+  let hasAtLeastOneCustomNamespace = false
+  webhooks.forEach(webhook => {
+    hasAtLeastOneCustomNamespace = typeof webhook.platformData._custom !== 'undefined'
+  })
+
+  t.true(hasAtLeastOneCustomNamespace)
 })

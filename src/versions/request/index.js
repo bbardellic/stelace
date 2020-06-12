@@ -2,6 +2,7 @@ const VersionTransformer = require('../transformer')
 const { apiVersions, transformConfigsIntoChanges } = require('../util')
 
 const listRequestChangeConfigs = [
+  require('./webhook'),
   require('./workflow'),
 ]
 
