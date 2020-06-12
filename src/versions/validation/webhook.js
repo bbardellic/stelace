@@ -4,11 +4,16 @@ const { DEFAULT_NB_RESULTS_PER_PAGE } = require('../../util/list')
 
 const schemas = {}
 
-const orderByFields = [
+const webhookOrderByFields = [
   'name',
   'createdDate',
   'updatedDate',
   'active'
+]
+
+const webhookLogOrderByFields = [
+  'createdDate',
+  'status',
 ]
 
 // ////////// //
@@ -18,7 +23,7 @@ schemas['2020-06-12'] = {}
 schemas['2020-06-12'].list = {
   query: Joi.object().keys({
     // order
-    orderBy: Joi.string().valid(...orderByFields).default('createdDate'),
+    orderBy: Joi.string().valid(...webhookOrderByFields).default('createdDate'),
     order: Joi.string().valid('asc', 'desc').default('desc'),
 
     // pagination
@@ -32,6 +37,29 @@ schemas['2020-06-12'].list = {
     event: Joi.array().unique().items(Joi.string()).single(),
     active: Joi.boolean(),
   })
+}
+
+schemas['2020-06-12'].listLogs = {
+  query: Joi.object().keys({
+    // order
+    orderBy: Joi.string().valid(...webhookLogOrderByFields).default('createdDate'),
+    order: Joi.string().valid('asc', 'desc').default('desc'),
+
+    // pagination
+    page: Joi.number().integer().min(1).default(1),
+    nbResultsPerPage: Joi.number().integer().min(1).max(100).default(DEFAULT_NB_RESULTS_PER_PAGE),
+
+    // filters
+    id: Joi.array().unique().items(Joi.string()).single(),
+    createdDate: getRangeFilter(Joi.string().isoDate()),
+    webhookId: Joi.array().unique().items(Joi.string()).single(),
+    eventId: Joi.array().unique().items(Joi.string()).single(),
+    statusCode: Joi.array().unique().items(Joi.string()).single(),
+  })
+}
+
+schemas['2020-06-12'].readLog = {
+  params: objectIdParamsSchema
 }
 
 // ////////// //
@@ -68,6 +96,14 @@ const validationVersions = {
     {
       target: 'webhook.list',
       schema: schemas['2020-06-12'].list
+    },
+    {
+      target: 'webhook.listLogs',
+      schema: schemas['2020-06-12'].listLogs
+    },
+    {
+      target: 'webhook.readLog',
+      schema: schemas['2020-06-12'].readLog
     },
   ],
 

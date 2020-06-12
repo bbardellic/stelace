@@ -247,6 +247,95 @@ function start ({ communication }) {
     return { id: webhookId }
   })
 
+  // /////////// //
+  // WEBHOOK LOG //
+  // /////////// //
+
+  responder.on('listLogs', async (req) => {
+    const platformId = req.platformId
+    const env = req.env
+    const { WebhookLog } = await getModels({ platformId, env })
+
+    const {
+      orderBy,
+      order,
+
+      page,
+      nbResultsPerPage,
+
+      id,
+      createdDate,
+      webhookId,
+      eventId,
+      status,
+    } = req
+
+    const queryBuilder = WebhookLog.query()
+
+    const paginationMeta = await performListQuery({
+      queryBuilder,
+      filters: {
+        ids: {
+          dbField: 'id',
+          value: id,
+          transformValue: 'array',
+          query: 'inList'
+        },
+        createdDate: {
+          dbField: 'createdDate',
+          value: createdDate,
+          query: 'range'
+        },
+        webhookIds: {
+          dbField: 'webhookId',
+          value: webhookId,
+          transformValue: 'array',
+          query: 'inList'
+        },
+        eventIds: {
+          dbField: 'eventId',
+          value: eventId,
+          transformValue: 'array',
+          query: 'inList'
+        },
+        statuses: {
+          dbField: 'statusCode',
+          value: status,
+          transformValue: 'array',
+          query: 'inList'
+        },
+      },
+      paginationActive: true,
+      paginationConfig: {
+        page,
+        nbResultsPerPage
+      },
+      orderConfig: {
+        orderBy,
+        order
+      }
+    })
+
+    paginationMeta.results = WebhookLog.exposeAll(paginationMeta.results, { req })
+
+    return paginationMeta
+  })
+
+  responder.on('readLog', async (req) => {
+    const platformId = req.platformId
+    const env = req.env
+    const { WebhookLog } = await getModels({ platformId, env })
+
+    const webhookLogId = req.webhookLogId
+
+    const webhookLog = await WebhookLog.query().findById(webhookLogId)
+    if (!webhookLog) {
+      throw createError(404)
+    }
+
+    return WebhookLog.expose(webhookLog, { req })
+  })
+
   // EVENTS
 
   eventSubscriber.on('eventCreated', async ({ event, platformId, env } = {}) => {
