@@ -1,10 +1,18 @@
-const { Joi, objectIdParamsSchema } = require('../../util/validation')
+const { Joi, objectIdParamsSchema, getRangeFilter } = require('../../util/validation')
 const { apiVersions } = require('../util')
+const { DEFAULT_NB_RESULTS_PER_PAGE } = require('../../util/list')
 
 const computedSchema = Joi.object().max(20)
 const contextSchema = Joi.array().unique().items(Joi.string()).single()
 const descriptionSchema = Joi.string().max(2048).allow('', null)
 const booleanExpressionSchema = Joi.string().max(1024).allow('', null)
+
+const orderByFields = [
+  'name',
+  'createdDate',
+  'updatedDate',
+  'active'
+]
 
 const runSchema = Joi.array().items(Joi.object({
   name: Joi.string().max(255),
@@ -24,6 +32,29 @@ const runSchema = Joi.array().items(Joi.object({
 })).single().max(10)
 
 const schemas = {}
+
+// ////////// //
+// 2020-06-12 //
+// ////////// //
+schemas['2020-06-12'] = {}
+schemas['2020-06-12'].list = {
+  query: Joi.object().keys({
+    // order
+    orderBy: Joi.string().valid(...orderByFields).default('createdDate'),
+    order: Joi.string().valid('asc', 'desc').default('desc'),
+
+    // pagination
+    page: Joi.number().integer().min(1).default(1),
+    nbResultsPerPage: Joi.number().integer().min(1).max(100).default(DEFAULT_NB_RESULTS_PER_PAGE),
+
+    // filters
+    id: Joi.array().unique().items(Joi.string()).single(),
+    createdDate: getRangeFilter(Joi.string().isoDate()),
+    updatedDate: getRangeFilter(Joi.string().isoDate()),
+    event: Joi.array().unique().items(Joi.string()).single(),
+    active: Joi.boolean(),
+  })
+}
 
 // ////////// //
 // 2019-05-20 //
@@ -58,6 +89,13 @@ schemas['2019-05-20'].remove = {
 }
 
 const validationVersions = {
+  '2020-06-12': [
+    {
+      target: 'workflow.list',
+      schema: schemas['2020-06-12'].list
+    },
+  ],
+
   '2019-05-20': [
     {
       target: 'workflow.list',

@@ -2,7 +2,7 @@ const VersionTransformer = require('../transformer')
 const { apiVersions, transformConfigsIntoChanges } = require('../util')
 
 const listRequestChangeConfigs = [
-
+  require('./workflow'),
 ]
 
 const changes = transformConfigsIntoChanges(listRequestChangeConfigs)

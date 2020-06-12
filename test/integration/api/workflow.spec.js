@@ -75,14 +75,50 @@ test.after(async (t) => {
 test('list workflows', async (t) => {
   const authorizationHeaders = await getAccessTokenHeaders({ t, permissions: ['workflow:list:all'] })
 
-  const result = await request(t.context.serverUrl)
-    .get('/workflows')
+  const { body: obj } = await request(t.context.serverUrl)
+    .get('/workflows?page=2')
     .set(authorizationHeaders)
     .expect(200)
 
-  const workflows = result.body
+  t.true(typeof obj === 'object')
+  t.true(typeof obj.nbResults === 'number')
+  t.true(typeof obj.nbPages === 'number')
+  t.true(typeof obj.page === 'number')
+  t.true(typeof obj.nbResultsPerPage === 'number')
+  t.true(Array.isArray(obj.results))
+})
 
-  t.true(Array.isArray(workflows))
+test('list workflows with id filter', async (t) => {
+  const authorizationHeaders = await getAccessTokenHeaders({ t, permissions: ['workflow:list:all'] })
+
+  const { body: obj } = await request(t.context.serverUrl)
+    .get('/workflows?id=wfw_SEIfQps1I3a1gJYz2I3a')
+    .set(authorizationHeaders)
+    .expect(200)
+
+  t.is(typeof obj, 'object')
+  t.is(obj.nbResults, 1)
+  t.is(obj.nbPages, 1)
+  t.is(obj.page, 1)
+  t.is(typeof obj.nbResultsPerPage, 'number')
+  t.is(obj.results.length, 1)
+})
+
+test('list workflows with advanced filters', async (t) => {
+  const authorizationHeaders = await getAccessTokenHeaders({ t, permissions: ['workflow:list:all'] })
+
+  const minDate = '2019-01-01T00:00:00.000Z'
+
+  const { body: obj } = await request(t.context.serverUrl)
+    .get(`/workflows?createdDate[gte]=${encodeURIComponent(minDate)}&active=true`)
+    .set(authorizationHeaders)
+    .expect(200)
+
+  t.is(obj.results.length, obj.nbResults)
+  obj.results.forEach(workflow => {
+    t.true(workflow.active)
+    t.true(workflow.createdDate >= minDate)
+  })
 })
 
 test('list workflows with custom namespace', async (t) => {
@@ -92,12 +128,19 @@ test('list workflows with custom namespace', async (t) => {
     readNamespaces: ['custom']
   })
 
-  const { body: workflows } = await request(t.context.serverUrl)
+  const { body: obj } = await request(t.context.serverUrl)
     .get('/workflows')
     .set(authorizationHeaders)
     .expect(200)
 
-  t.true(Array.isArray(workflows))
+  t.true(typeof obj === 'object')
+  t.true(typeof obj.nbResults === 'number')
+  t.true(typeof obj.nbPages === 'number')
+  t.true(typeof obj.page === 'number')
+  t.true(typeof obj.nbResultsPerPage === 'number')
+  t.true(Array.isArray(obj.results))
+
+  const workflows = obj.results
 
   const hasAtLeastOneCustomNamespace = workflows.some(w => typeof w.platformData._custom !== 'undefined')
   t.true(hasAtLeastOneCustomNamespace)
@@ -2056,4 +2099,42 @@ test('fails to update a workflow with an invalid API version', async (t) => {
     .expect(400)
 
   t.pass()
+})
+
+// //////// //
+// VERSIONS //
+// //////// //
+
+test('2019-05-20: list workflows', async (t) => {
+  const authorizationHeaders = await getAccessTokenHeaders({
+    apiVersion: '2019-05-20',
+    t,
+    permissions: ['workflow:list:all']
+  })
+
+  const { body: workflows } = await request(t.context.serverUrl)
+    .get('/workflows')
+    .set(authorizationHeaders)
+    .expect(200)
+
+  t.true(Array.isArray(workflows))
+})
+
+test('2019-05-20: list workflows with custom namespace', async (t) => {
+  const authorizationHeaders = await getAccessTokenHeaders({
+    apiVersion: '2019-05-20',
+    t,
+    permissions: ['workflow:list:all'],
+    readNamespaces: ['custom']
+  })
+
+  const { body: workflows } = await request(t.context.serverUrl)
+    .get('/workflows')
+    .set(authorizationHeaders)
+    .expect(200)
+
+  t.true(Array.isArray(workflows))
+
+  const hasAtLeastOneCustomNamespace = workflows.some(w => typeof w.platformData._custom !== 'undefined')
+  t.true(hasAtLeastOneCustomNamespace)
 })
